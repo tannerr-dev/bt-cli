@@ -125,16 +125,13 @@ func (m model) View() string {
 
 		for i, device := range m.devices {
 			var status string
-			var statusStyle lipgloss.Style
 			if device.Connected {
 				status = "Connected"
-				statusStyle = StatusConnected
 			} else {
 				status = "Disconnected"
-				statusStyle = StatusDisconnected
 			}
 
-			var trustMark string
+			trustMark := " "
 			if device.Trusted {
 				trustMark = "★"
 			}
@@ -142,9 +139,9 @@ func (m model) View() string {
 			name := bluetooth.PadRight(device.DisplayName(), 25)
 			deviceLine := fmt.Sprintf("  %s %s  %s %s",
 				device.TypeIcon(),
-				lipgloss.Style{}.Width(25).Render(name),
-				statusStyle.Render(status),
-				lipgloss.Style{}.Foreground(lipgloss.Color("245")).Render(trustMark),
+				name,
+				status,
+				trustMark,
 			)
 
 			if i == m.selected {
