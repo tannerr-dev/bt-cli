@@ -2,6 +2,7 @@
 
 *CLI/TUI wrapper around bluetoothctl commands*
 
+Control your bluetooth devices via the command line. `bt`
 
 ## Code Structure
 
