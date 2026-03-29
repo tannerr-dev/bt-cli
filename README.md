@@ -59,36 +59,3 @@ bt-cli/
     └── styles.go        # Lipgloss styling definitions
 ```
 
-### Layers
-
-**1. `main.go`** — Trivial entry point. Calls `ui.Run()`.
-
-**2. `bluetooth/bluetooth.go`** — Low-level wrapper around the `bluetoothctl` CLI tool.
-- Defines `Device` and `Controller` structs
-- Functions like `GetDevices()`, `ConnectDevice()`, `SetPower()` all exec `bluetoothctl` and parse the text output
-- All I/O is blocking and synchronous (executes a subprocess)
-
-**3. `ui/app.go`** — The TUI. Contains three components:
-
-| Component | Role |
-|---|---|
-| `model` struct | Holds all app state (devices, controller, selection, loading flags, etc.) |
-| `Update()` | Event handler — receives user input or async results, mutates state, returns commands |
-| `View()` | Renders the terminal UI by returning a string (called after every `Update`) |
-
-**4. `ui/styles.go`** — Defines reusable Lipgloss style objects (colors, borders, bold text) used by `View()`.
-
-### The MVU Flow
-
-1. **Init** — Fetches devices and controller info
-2. **Loop** — For each user keypress or async result:
-   - `Update()` processes the message, mutates `model`, returns a `tea.Cmd` (background task)
-   - `View()` renders the current model to a string
-3. **Commands** — Background goroutines (e.g., `connectDevice()`) run bluetoothctl, then send the result back as a new message to `Update()`
-
-### Key Design Choices
-
-- **No separate "View" struct** — The `View()` method is on the model itself (Bubbletea convention)
-- **Messages as state change protocol** — All state mutations happen in `Update()` based on incoming messages
-- **Synchronous bluetoothctl calls** — Each operation (connect, disconnect, scan) blocks until the subprocess completes
-

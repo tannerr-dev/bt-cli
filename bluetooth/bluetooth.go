@@ -7,8 +7,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/mattn/go-runewidth"
 )
 
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
@@ -392,15 +390,4 @@ func SetScan(on bool) error {
 	}
 	_, err := RunCommand("scan", scan)
 	return err
-}
-
-func PadRight(s string, w int) string {
-	return s + strings.Repeat(" ", max(0, w-runewidth.StringWidth(s)))
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
