@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"bt/bluetooth"
@@ -208,6 +209,10 @@ func (m model) View() string {
 			statusMode = 0
 			trustMode = 0
 		}
+
+		sort.Slice(m.devices, func(i, j int) bool {
+			return m.devices[i].DisplayName() < m.devices[j].DisplayName()
+		})
 
 		for i, device := range m.devices {
 			trustMark := " "
