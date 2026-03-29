@@ -164,6 +164,9 @@ func (m model) View() string {
 		"",
 	)
 
+	statusMode := 2
+	trustMode := 2
+
 	if m.loading {
 		output = lipgloss.JoinVertical(lipgloss.Left, output, "  Loading...")
 	} else if len(m.devices) == 0 {
@@ -174,24 +177,26 @@ func (m model) View() string {
 		output = lipgloss.JoinVertical(lipgloss.Left, output, deviceHeader)
 
 		nameWidth := 25
-		showStatus := true
-		showTrust := true
 
 		if minWidth < 60 {
 			nameWidth = 15
+			statusMode = 1
+			trustMode = 1
 		}
 		if minWidth < 45 {
 			nameWidth = 10
-			showStatus = false
+			statusMode = 1
+			trustMode = 1
 		}
 		if minWidth < 35 {
 			nameWidth = 8
-			showTrust = false
+			statusMode = 0
+			trustMode = 0
 		}
 
 		for i, device := range m.devices {
 			trustMark := " "
-			if showTrust && device.Trusted {
+			if trustMode > 0 && device.Trusted {
 				trustMark = "★"
 			}
 
@@ -200,29 +205,44 @@ func (m model) View() string {
 				displayName = truncate(displayName, nameWidth)
 			}
 
-			var deviceLine string
-			if showStatus {
-				status := "○"
-				statusStyle := StatusDisconnected
-				if device.Connected {
-					status = "●"
+			var statusStr string
+			var statusStyle lipgloss.Style
+			connected := device.Connected
+
+			switch statusMode {
+			case 0:
+				statusStyle = StatusDisconnected
+				if connected {
 					statusStyle = StatusConnected
+					statusStr = "●"
+				} else {
+					statusStr = "○"
 				}
-				deviceLine = fmt.Sprintf("  %s %-*s %s %s",
-					device.TypeIcon(),
-					nameWidth,
-					displayName,
-					statusStyle.Render(status),
-					trustMark,
-				)
-			} else {
-				deviceLine = fmt.Sprintf("  %s %-*s %s",
-					device.TypeIcon(),
-					nameWidth,
-					displayName,
-					trustMark,
-				)
+			case 1:
+				statusStyle = StatusDisconnected
+				if connected {
+					statusStyle = StatusConnected
+					statusStr = "Conn"
+				} else {
+					statusStr = "Disc"
+				}
+			default:
+				statusStyle = StatusDisconnected
+				if connected {
+					statusStyle = StatusConnected
+					statusStr = "Connected   "
+				} else {
+					statusStr = "Disconnected"
+				}
 			}
+
+			deviceLine := fmt.Sprintf("  %s %-*s %s %s",
+				device.TypeIcon(),
+				nameWidth,
+				displayName,
+				statusStyle.Render(statusStr),
+				trustMark,
+			)
 
 			if i == m.selected {
 				deviceLine = SelectedStyle.Render(deviceLine)
@@ -253,9 +273,14 @@ func (m model) View() string {
 	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    r      Refresh"))
 	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    q      Quit"))
 
-	if minWidth >= 35 {
+	if trustMode > 0 {
 		output = lipgloss.JoinVertical(lipgloss.Left, output, "")
-		output = lipgloss.JoinVertical(lipgloss.Left, output, lipgloss.Style{}.Foreground(lipgloss.Color("245")).Render("  ★ = Trusted (auto-reconnect)"))
+		switch trustMode {
+		case 1:
+			output = lipgloss.JoinVertical(lipgloss.Left, output, lipgloss.Style{}.Foreground(lipgloss.Color("245")).Render("  ★ = Trusted"))
+		default:
+			output = lipgloss.JoinVertical(lipgloss.Left, output, lipgloss.Style{}.Foreground(lipgloss.Color("245")).Render("  ★ = Trusted (auto-reconnect)"))
+		}
 	}
 
 	if m.statusMsg != "" {
