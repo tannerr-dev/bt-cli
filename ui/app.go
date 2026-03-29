@@ -165,7 +165,7 @@ func (m model) View() string {
 		for i, device := range m.devices {
 			var status string
 			if device.Connected {
-				status = StatusConnected.Render("Connected")
+				status = StatusConnected.Render("Connected   ")
 			} else {
 				status = StatusDisconnected.Render("Disconnected")
 			}
