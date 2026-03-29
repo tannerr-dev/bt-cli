@@ -1,11 +1,12 @@
 package bluetooth
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
 	"strings"
-	"time"
+	"sync"
 
 	"github.com/mattn/go-runewidth"
 )
@@ -99,7 +100,11 @@ func RunCommand(cmd string, args ...string) (string, error) {
 	output, err := execCmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return stripANSI(string(exitErr.Stderr)), nil
+			stderr := stripANSI(string(exitErr.Stderr))
+			if stderr != "" {
+				return "", errors.New(stderr)
+			}
+			return "", err
 		}
 		return "", err
 	}
@@ -116,16 +121,12 @@ func GetDevices() ([]Device, error) {
 		return nil, fmt.Errorf("failed to get devices: %w", err)
 	}
 
-	var devices []Device
+	var macs []string
 	lines := strings.Split(output, "\n")
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		if !strings.HasPrefix(line, "Device ") {
+		if line == "" || !strings.HasPrefix(line, "Device ") {
 			continue
 		}
 
@@ -138,18 +139,75 @@ func GetDevices() ([]Device, error) {
 		if !isMAC(mac) {
 			continue
 		}
+		macs = append(macs, mac)
+	}
 
-		name := strings.Join(parts[2:], " ")
+	if len(macs) == 0 {
+		return []Device{}, nil
+	}
 
-		device, err := GetDeviceInfo(mac)
-		if err != nil {
-			device = Device{MAC: mac, Name: name}
-		} else {
+	type result struct {
+		mac    string
+		name   string
+		device Device
+		err    error
+	}
+
+	const maxConcurrency = 5
+	sem := make(chan struct{}, maxConcurrency)
+	results := make(chan result, len(macs))
+	var wg sync.WaitGroup
+
+	for _, mac := range macs {
+		wg.Add(1)
+		go func(mac string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			name := ""
+			output, err := RunCommand("info", mac)
+			if err == nil {
+				lines := strings.Split(output, "\n")
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "Device") && strings.Contains(line, mac) {
+						continue
+					}
+					if strings.HasPrefix(line, "Name") {
+						parts := strings.SplitN(line, ":", 2)
+						if len(parts) == 2 {
+							name = strings.TrimSpace(parts[1])
+						}
+						break
+					}
+				}
+			}
+
+			device, err := GetDeviceInfo(mac)
+			if err != nil {
+				results <- result{mac: mac, name: name, err: err}
+				return
+			}
 			if device.Name == "" {
 				device.Name = name
 			}
+			results <- result{device: device}
+		}(mac)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	var devices []Device
+	for r := range results {
+		if r.err != nil && r.device.MAC == "" {
+			devices = append(devices, Device{MAC: r.mac, Name: r.name})
+		} else {
+			devices = append(devices, r.device)
 		}
-		devices = append(devices, device)
 	}
 
 	return devices, nil
@@ -287,7 +345,6 @@ func ConnectDevice(mac string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	time.Sleep(500 * time.Millisecond)
 	return nil
 }
 
@@ -296,7 +353,6 @@ func DisconnectDevice(mac string) error {
 	if err != nil {
 		return fmt.Errorf("failed to disconnect: %w", err)
 	}
-	time.Sleep(500 * time.Millisecond)
 	return nil
 }
 

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"bt/bluetooth"
 
@@ -11,13 +12,14 @@ import (
 )
 
 type model struct {
-	devices    []bluetooth.Device
-	controller *bluetooth.Controller
-	selected   int
-	scanning   bool
-	loading    bool
-	statusMsg  string
-	err        error
+	devices      []bluetooth.Device
+	controller   *bluetooth.Controller
+	selected     int
+	scanning     bool
+	loading      bool
+	scanInFlight bool
+	statusMsg    string
+	err          error
 }
 
 func InitialModel() model {
@@ -31,8 +33,13 @@ func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		refreshDevices,
 		getController,
+		tea.Tick(time.Second*5, func(t time.Time) tea.Msg {
+			return refreshControllerMsg{}
+		}),
 	)
 }
+
+type refreshControllerMsg struct{}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -66,24 +73,56 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "r":
 			m.loading = true
-			return m, refreshDevices
+			return m, tea.Batch(refreshDevices, getController)
 		case "s":
+			if m.scanInFlight {
+				return m, nil
+			}
+			m.scanInFlight = true
 			m.scanning = !m.scanning
 			return m, toggleScan(m.scanning)
 		case "p":
 			if len(m.devices) > 0 && m.selected < len(m.devices) {
 				return m, pairDevice(m.devices[m.selected].MAC)
 			}
+		case "P":
+			return m, togglePower()
+		case "x":
+			if len(m.devices) > 0 && m.selected < len(m.devices) {
+				return m, removeDevice(m.devices[m.selected].MAC)
+			}
 		}
 	case []bluetooth.Device:
 		m.devices = msg
 		m.loading = false
+		m.err = nil
 	case *bluetooth.Controller:
 		m.controller = msg
+	case devicesAndControllerMsg:
+		devices, ctrl, err := getDevicesAndController()
+		if err != nil {
+			m.err = err
+			m.loading = false
+		} else {
+			m.devices = devices
+			m.controller = ctrl
+			m.loading = false
+			m.err = nil
+		}
+	case refreshControllerMsg:
+		return m, tea.Batch(
+			getController,
+			tea.Tick(time.Second*5, func(t time.Time) tea.Msg {
+				return refreshControllerMsg{}
+			}),
+		)
+	case scanDoneMsg:
+		m.scanInFlight = false
 	case string:
 		m.statusMsg = msg
 	case error:
 		m.err = msg
+		m.loading = false
 	}
 	return m, nil
 }
@@ -126,9 +165,9 @@ func (m model) View() string {
 		for i, device := range m.devices {
 			var status string
 			if device.Connected {
-				status = "Connected"
+				status = StatusConnected.Render("Connected")
 			} else {
-				status = "Disconnected"
+				status = StatusDisconnected.Render("Disconnected")
 			}
 
 			trustMark := " "
@@ -155,7 +194,7 @@ func (m model) View() string {
 	}
 
 	output = lipgloss.JoinVertical(lipgloss.Left, output, "")
-	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Render("  ↑↓ Navigate  |  c: Connect  |  d: Disconnect  |  t: Trust  |  s: Scan  |  r: Refresh  |  q: Quit"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Render("  ↑↓ Navigate  |  Enter/c/d: Connect/Disconnect  |  t: Trust  |  s: Scan  |  P: Power  |  r: Refresh  |  x: Remove  |  q: Quit"))
 	output = lipgloss.JoinVertical(lipgloss.Left, output, lipgloss.Style{}.Foreground(lipgloss.Color("245")).Render("  ★ = Trusted (auto-reconnect)"))
 
 	if m.statusMsg != "" {
@@ -180,11 +219,7 @@ func toggleDevice(device bluetooth.Device) tea.Cmd {
 		if err != nil {
 			return err
 		}
-		devices, err := bluetooth.GetDevices()
-		if err != nil {
-			return err
-		}
-		return devices
+		return devicesAndControllerMsg{}
 	}
 }
 
@@ -194,11 +229,7 @@ func connectDevice(mac string) tea.Cmd {
 		if err != nil {
 			return err
 		}
-		devices, err := bluetooth.GetDevices()
-		if err != nil {
-			return err
-		}
-		return devices
+		return devicesAndControllerMsg{}
 	}
 }
 
@@ -208,12 +239,22 @@ func disconnectDevice(mac string) tea.Cmd {
 		if err != nil {
 			return err
 		}
-		devices, err := bluetooth.GetDevices()
-		if err != nil {
-			return err
-		}
-		return devices
+		return devicesAndControllerMsg{}
 	}
+}
+
+type devicesAndControllerMsg struct{}
+
+func getDevicesAndController() ([]bluetooth.Device, *bluetooth.Controller, error) {
+	devices, err := bluetooth.GetDevices()
+	if err != nil {
+		return nil, nil, err
+	}
+	ctrl, err := bluetooth.GetController()
+	if err != nil {
+		return devices, nil, err
+	}
+	return devices, ctrl, nil
 }
 
 func toggleTrust(device bluetooth.Device) tea.Cmd {
@@ -237,8 +278,12 @@ func toggleScan(on bool) tea.Cmd {
 		if err != nil {
 			return err
 		}
-		return "Scan updated"
+		return scanDoneMsg{on: on}
 	}
+}
+
+type scanDoneMsg struct {
+	on bool
 }
 
 func refreshDevices() tea.Msg {
@@ -263,7 +308,43 @@ func pairDevice(mac string) tea.Cmd {
 		if err != nil {
 			return err
 		}
-		return "Pairing initiated"
+		devices, err := bluetooth.GetDevices()
+		if err != nil {
+			return err
+		}
+		return devices
+	}
+}
+
+func togglePower() tea.Cmd {
+	return func() tea.Msg {
+		ctrl, err := bluetooth.GetController()
+		if err != nil {
+			return err
+		}
+		err = bluetooth.SetPower(!ctrl.Powered)
+		if err != nil {
+			return err
+		}
+		newCtrl, err := bluetooth.GetController()
+		if err != nil {
+			return err
+		}
+		return newCtrl
+	}
+}
+
+func removeDevice(mac string) tea.Cmd {
+	return func() tea.Msg {
+		err := bluetooth.RemoveDevice(mac)
+		if err != nil {
+			return err
+		}
+		devices, err := bluetooth.GetDevices()
+		if err != nil {
+			return err
+		}
+		return devices
 	}
 }
 
