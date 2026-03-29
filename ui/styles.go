@@ -12,12 +12,10 @@ var (
 	SelectedStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("229")).
 			Background(lipgloss.Color("57")).
-			Bold(true).
-			Width(50)
+			Bold(true)
 
 	NormalStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("250")).
-			Width(50)
+			Foreground(lipgloss.Color("250"))
 
 	StatusConnected = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("46")).
