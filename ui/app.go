@@ -425,7 +425,7 @@ func removeDevice(mac string) tea.Cmd {
 }
 
 func Run() {
-	p := tea.NewProgram(InitialModel())
+	p := tea.NewProgram(InitialModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v", err)
 		os.Exit(1)
