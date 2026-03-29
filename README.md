@@ -4,6 +4,46 @@
 
 Control your bluetooth devices via the command line. `bt`
 
+---
+
+## Building
+
+### Prerequisites
+- Go 1.21+
+- Linux with `bluetoothctl` available (part of the `bluez` package)
+
+### Build
+
+```bash
+go build -o bt .
+```
+
+This produces an executable named `bt` in the current directory.
+
+### Run
+
+```bash
+./bt
+```
+
+### Install globally
+
+```bash
+go install
+# or
+go build -o /usr/local/bin/bt .
+```
+
+### Dependencies
+
+Dependencies are managed via Go modules and installed automatically with `go build` or `go mod download`.
+
+Required packages:
+- `github.com/charmbracelet/bubbletea` — TUI framework
+- `github.com/charmbracelet/lipgloss` — Terminal styling
+- `github.com/mattn/go-runewidth` — Unicode width for padding
+
+
 ## Code Structure
 
 The app follows a **Model-View-Update (MVU)** architecture using the [Charmbracelet Bubbletea](https://github.com/charmbracelet/bubbletea) framework.
@@ -50,43 +90,4 @@ bt-cli/
 - **No separate "View" struct** — The `View()` method is on the model itself (Bubbletea convention)
 - **Messages as state change protocol** — All state mutations happen in `Update()` based on incoming messages
 - **Synchronous bluetoothctl calls** — Each operation (connect, disconnect, scan) blocks until the subprocess completes
-
----
-
-## Building
-
-### Prerequisites
-- Go 1.21+
-- Linux with `bluetoothctl` available (part of the `bluez` package)
-
-### Build
-
-```bash
-go build -o bt .
-```
-
-This produces an executable named `bt` in the current directory.
-
-### Run
-
-```bash
-./bt
-```
-
-### Install globally
-
-```bash
-go install
-# or
-go build -o /usr/local/bin/bt .
-```
-
-### Dependencies
-
-Dependencies are managed via Go modules and installed automatically with `go build` or `go mod download`.
-
-Required packages:
-- `github.com/charmbracelet/bubbletea` — TUI framework
-- `github.com/charmbracelet/lipgloss` — Terminal styling
-- `github.com/mattn/go-runewidth` — Unicode width for padding
 
