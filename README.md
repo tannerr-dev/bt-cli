@@ -42,7 +42,6 @@ Dependencies are managed via Go modules and installed automatically with `go bui
 Required packages:
 - `github.com/charmbracelet/bubbletea` — TUI framework
 - `github.com/charmbracelet/lipgloss` — Terminal styling
-- `github.com/mattn/go-runewidth` — Unicode width for padding
 
 
 ## Code Structure
