@@ -33,7 +33,21 @@ var (
 
 	BorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("57"))
+			BorderForeground(lipgloss.Color("57")).
+			Width(50).
+			AlignHorizontal(lipgloss.Center)
+
+	BorderStyleWide = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("57")).
+			Width(70).
+			AlignHorizontal(lipgloss.Center)
+
+	InnerStyle = lipgloss.NewStyle().
+			Width(46)
+
+	InnerStyleWide = lipgloss.NewStyle().
+			Width(66)
 
 	ErrorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196"))

@@ -134,12 +134,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	s := BorderStyle.Render
+	var borderStyle lipgloss.Style
+	var innerStyle lipgloss.Style
+	var minWidth int
 
-	minWidth := 50
-	if m.width > 0 {
+	if m.width > 0 && m.width < 70 {
+		borderStyle = BorderStyle
+		innerStyle = InnerStyle
 		minWidth = m.width
+	} else {
+		borderStyle = BorderStyleWide
+		innerStyle = InnerStyleWide
+		minWidth = m.width
+		if minWidth > 80 {
+			minWidth = 80
+		}
 	}
+	if minWidth < 50 {
+		minWidth = 50
+	}
+
+	s := borderStyle.Render
 
 	header := TitleStyle.Render(" Bluetooth ")
 	if m.controller != nil {
@@ -285,13 +300,19 @@ func (m model) View() string {
 
 	if m.statusMsg != "" {
 		if m.err != nil {
-			output = lipgloss.JoinVertical(lipgloss.Left, output, ErrorStyle.Width(minWidth-4).Render("  ✗ "+m.statusMsg))
+			output = lipgloss.JoinVertical(lipgloss.Left, output, ErrorStyle.Render("  ✗ "+m.statusMsg))
 		} else {
-			output = lipgloss.JoinVertical(lipgloss.Left, output, SuccessStyle.Width(minWidth-4).Render("  ✓ "+m.statusMsg))
+			output = lipgloss.JoinVertical(lipgloss.Left, output, SuccessStyle.Render("  ✓ "+m.statusMsg))
 		}
 	}
 
-	return s(output)
+	bordered := s(innerStyle.Render(output))
+
+	if m.width > 0 && m.height > 0 {
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, bordered)
+	}
+
+	return bordered
 }
 
 func truncate(s string, maxWidth int) string {
