@@ -4,6 +4,8 @@
 
 Control your bluetooth devices via the command line. `bt`
 
+![bt-cli](https://github.com/user-attachments/assets/c8768538-30fe-4d03-a5cb-9399267fba9b)
+
 ---
 
 ## Building
