@@ -3,8 +3,7 @@
 *CLI/TUI wrapper around bluetoothctl commands*
 
 Control your bluetooth devices via the command line. `bt`
-
-![bt-cli](https://github.com/user-attachments/assets/c8768538-30fe-4d03-a5cb-9399267fba9b)
+![screenshot](https://github.com/user-attachments/assets/3c6414d2-0f6a-442c-89f1-b62ae98ca3e4)
 
 ---
 
