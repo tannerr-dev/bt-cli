@@ -12,6 +12,8 @@ import (
 )
 
 type model struct {
+	width        int
+	height       int
 	devices      []bluetooth.Device
 	controller   *bluetooth.Controller
 	selected     int
@@ -43,6 +45,10 @@ type refreshControllerMsg struct{}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -130,6 +136,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	s := BorderStyle.Render
 
+	minWidth := 50
+	if m.width > 0 {
+		minWidth = m.width
+	}
+
 	header := TitleStyle.Render(" Bluetooth ")
 	if m.controller != nil {
 		power := "●"
@@ -157,31 +168,61 @@ func (m model) View() string {
 		output = lipgloss.JoinVertical(lipgloss.Left, output, "  Loading...")
 	} else if len(m.devices) == 0 {
 		output = lipgloss.JoinVertical(lipgloss.Left, output, "  No paired devices")
-		output = lipgloss.JoinVertical(lipgloss.Left, output, "  Press 's' to scan for nearby devices")
+		output = lipgloss.JoinVertical(lipgloss.Left, output, "  Press 's' to scan")
 	} else {
 		deviceHeader := HeaderStyle.Render(" Paired Devices ")
 		output = lipgloss.JoinVertical(lipgloss.Left, output, deviceHeader)
 
-		for i, device := range m.devices {
-			var status string
-			if device.Connected {
-				status = StatusConnected.Render("Connected   ")
-			} else {
-				status = StatusDisconnected.Render("Disconnected")
-			}
+		nameWidth := 25
+		showStatus := true
+		showTrust := true
 
+		if minWidth < 60 {
+			nameWidth = 15
+		}
+		if minWidth < 45 {
+			nameWidth = 10
+			showStatus = false
+		}
+		if minWidth < 35 {
+			nameWidth = 8
+			showTrust = false
+		}
+
+		for i, device := range m.devices {
 			trustMark := " "
-			if device.Trusted {
+			if showTrust && device.Trusted {
 				trustMark = "★"
 			}
 
-			name := bluetooth.PadRight(device.DisplayName(), 25)
-			deviceLine := fmt.Sprintf("  %s %s  %s %s",
-				device.TypeIcon(),
-				name,
-				status,
-				trustMark,
-			)
+			displayName := device.DisplayName()
+			if lipgloss.Width(displayName) > nameWidth {
+				displayName = truncate(displayName, nameWidth)
+			}
+
+			var deviceLine string
+			if showStatus {
+				status := "○"
+				statusStyle := StatusDisconnected
+				if device.Connected {
+					status = "●"
+					statusStyle = StatusConnected
+				}
+				deviceLine = fmt.Sprintf("  %s %-*s %s %s",
+					device.TypeIcon(),
+					nameWidth,
+					displayName,
+					statusStyle.Render(status),
+					trustMark,
+				)
+			} else {
+				deviceLine = fmt.Sprintf("  %s %-*s %s",
+					device.TypeIcon(),
+					nameWidth,
+					displayName,
+					trustMark,
+				)
+			}
 
 			if i == m.selected {
 				deviceLine = SelectedStyle.Render(deviceLine)
@@ -194,18 +235,53 @@ func (m model) View() string {
 	}
 
 	output = lipgloss.JoinVertical(lipgloss.Left, output, "")
-	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Render("  ↑↓ Navigate  |  Enter/c/d: Connect/Disconnect  |  t: Trust  |  s: Scan  |  P: Power  |  r: Refresh  |  x: Remove  |  q: Quit"))
-	output = lipgloss.JoinVertical(lipgloss.Left, output, lipgloss.Style{}.Foreground(lipgloss.Color("245")).Render("  ★ = Trusted (auto-reconnect)"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("  Navigation"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    ↑↓  Navigate"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render(""))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("  Device Actions"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    Enter  Connect/Disconnect"))
+	if minWidth >= 45 {
+		output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    c      Connect"))
+		output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    d      Disconnect"))
+	}
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    t      Toggle Trust"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    x      Remove Device"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render(""))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("  System"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    s      Toggle Scan"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    P      Toggle Power"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    r      Refresh"))
+	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    q      Quit"))
+
+	if minWidth >= 35 {
+		output = lipgloss.JoinVertical(lipgloss.Left, output, "")
+		output = lipgloss.JoinVertical(lipgloss.Left, output, lipgloss.Style{}.Foreground(lipgloss.Color("245")).Render("  ★ = Trusted (auto-reconnect)"))
+	}
 
 	if m.statusMsg != "" {
 		if m.err != nil {
-			output = lipgloss.JoinVertical(lipgloss.Left, output, ErrorStyle.Render("  ✗ "+m.statusMsg))
+			output = lipgloss.JoinVertical(lipgloss.Left, output, ErrorStyle.Width(minWidth-4).Render("  ✗ "+m.statusMsg))
 		} else {
-			output = lipgloss.JoinVertical(lipgloss.Left, output, SuccessStyle.Render("  ✓ "+m.statusMsg))
+			output = lipgloss.JoinVertical(lipgloss.Left, output, SuccessStyle.Width(minWidth-4).Render("  ✓ "+m.statusMsg))
 		}
 	}
 
 	return s(output)
+}
+
+func truncate(s string, maxWidth int) string {
+	width := 0
+	for i, r := range s {
+		w := 2
+		if r < 128 {
+			w = 1
+		}
+		if width+w > maxWidth {
+			return s[:i] + "…"
+		}
+		width += w
+	}
+	return s
 }
 
 func toggleDevice(device bluetooth.Device) tea.Cmd {
