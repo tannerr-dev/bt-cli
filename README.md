@@ -1,6 +1,7 @@
 # bt-cli
 
 *CLI/TUI wrapper around bluetoothctl commands*
+* this is vibe coded *
 
 Control your bluetooth devices via the command line. `bt`
 ![screenshot](https://github.com/user-attachments/assets/3c6414d2-0f6a-442c-89f1-b62ae98ca3e4)
