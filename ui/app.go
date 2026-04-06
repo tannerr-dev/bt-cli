@@ -94,10 +94,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "P":
 			return m, togglePower()
-		case "x":
-			if len(m.devices) > 0 && m.selected < len(m.devices) {
-				return m, removeDevice(m.devices[m.selected].MAC)
-			}
+			// case "x":
+			// 	if len(m.devices) > 0 && m.selected < len(m.devices) {
+			// 		return m, removeDevice(m.devices[m.selected].MAC)
+			// 	}
 		}
 	case []bluetooth.Device:
 		m.devices = msg
@@ -285,7 +285,7 @@ func (m model) View() string {
 		output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    d      Disconnect"))
 	}
 	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    t      Toggle Trust"))
-	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    x      Remove Device"))
+	// output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    x      Remove Device"))
 	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render(""))
 	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("  System"))
 	output = lipgloss.JoinVertical(lipgloss.Left, output, HelpStyle.Width(minWidth-4).Render("    s      Toggle Scan"))
