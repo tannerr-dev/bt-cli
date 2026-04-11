@@ -114,7 +114,7 @@ func stripANSI(s string) string {
 }
 
 func GetDevices() ([]Device, error) {
-	output, err := RunCommand("devices", "Paired")
+	output, err := RunCommand("devices")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get devices: %w", err)
 	}
