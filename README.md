@@ -1,5 +1,7 @@
 # bt-cli
-
+this is old now
+new home: 
+https://codeberg.org/tannerr/bt
 *CLI/TUI wrapper around bluetoothctl commands*
 * this is vibe coded *
 
